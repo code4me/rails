@@ -772,7 +772,7 @@ module ActiveRecord
           if @config[:encoding]
             encoding = "NAMES #{@config[:encoding]}".dup
             encoding << " COLLATE #{@config[:collation]}" if @config[:collation]
-            encoding << ", "
+            execute "SET #{encoding}"
           end
 
           # Gather up all of the SET variables...
@@ -785,8 +785,8 @@ module ActiveRecord
             # or else nil; compact to clear nils out
           end.compact.join(", ")
 
-          # ...and send them all in one query
-          execute "SET #{encoding} #{sql_mode_assignment} #{variable_assignments}"
+          # ...and send them all in two queries
+          execute "SET #{sql_mode_assignment} #{variable_assignments}"
         end
 
         def column_definitions(table_name) # :nodoc:
