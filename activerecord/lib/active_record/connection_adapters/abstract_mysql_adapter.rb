@@ -737,20 +737,6 @@ module ActiveRecord
         end
 
         def configure_connection
-          set_character_set_and_collation
-          set_variables
-        end
-
-        # https://dev.mysql.com/doc/refman/5.7/en/set-names.html
-        def set_character_set_and_collation
-          return unless @config[:encoding]
-          encoding = "NAMES #{@config[:encoding]}".dup
-          encoding << " COLLATE #{@config[:collation]}" if @config[:collation]
-          execute "SET #{encoding}"
-        end
-
-        # https://dev.mysql.com/doc/refman/5.7/en/set-variable.html
-        def set_variables
           variables = @config.fetch(:variables, {}).stringify_keys
 
           # By default, MySQL 'where id is null' selects the last inserted id; Turn this off.
@@ -760,6 +746,11 @@ module ActiveRecord
           wait_timeout = self.class.type_cast_config_to_integer(@config[:wait_timeout])
           wait_timeout = 2147483 unless wait_timeout.is_a?(Integer)
           variables["wait_timeout"] = wait_timeout
+
+          # Set the collation of the connection character set.
+          if @config[:collation]
+            variables["collation_connection"] = @config[:collation]
+          end
 
           defaults = [":default", :default].to_set
 
