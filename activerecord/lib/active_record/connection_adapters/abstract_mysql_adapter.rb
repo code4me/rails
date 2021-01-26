@@ -737,6 +737,20 @@ module ActiveRecord
         end
 
         def configure_connection
+          set_character_set_and_collation
+          set_variables
+        end
+
+        # https://dev.mysql.com/doc/refman/5.7/en/set-names.html
+        def set_character_set_and_collation
+          return unless @config[:encoding]
+          encoding = "NAMES #{@config[:encoding]}".dup
+          encoding << " COLLATE #{@config[:collation]}" if @config[:collation]
+          execute "SET #{encoding}"
+        end
+
+        # https://dev.mysql.com/doc/refman/5.7/en/set-variable.html
+        def set_variables
           variables = @config.fetch(:variables, {}).stringify_keys
 
           # By default, MySQL 'where id is null' selects the last inserted id; Turn this off.
@@ -766,15 +780,6 @@ module ActiveRecord
           end
           sql_mode_assignment = "@@SESSION.sql_mode = #{sql_mode}, " if sql_mode
 
-          # NAMES does not have an equals sign, see
-          # https://dev.mysql.com/doc/refman/5.7/en/set-names.html
-          # (trailing comma because variable_assignments will always have content)
-          if @config[:encoding]
-            encoding = "NAMES #{@config[:encoding]}".dup
-            encoding << " COLLATE #{@config[:collation]}" if @config[:collation]
-            execute "SET #{encoding}"
-          end
-
           # Gather up all of the SET variables...
           variable_assignments = variables.map do |k, v|
             if defaults.include?(v)
@@ -785,7 +790,7 @@ module ActiveRecord
             # or else nil; compact to clear nils out
           end.compact.join(", ")
 
-          # ...and send them all in two queries
+          # ...and send them all in one query
           execute "SET #{sql_mode_assignment} #{variable_assignments}"
         end
 
